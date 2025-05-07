@@ -249,7 +249,7 @@ export const formatFiscalId = (id) => {
   // Formatear según longitud
   if (id.length === 9) {
     // RNC: XXX-XXXXXX-X
-    return `${id.substring(0, 3)}-${id.substring(3, 9)}-${id.substring(9)}`;
+    return `${id.substring(0, 3)}-${id.substring(3, 9)}`;
   } else if (id.length === 11) {
     // Cédula: XXX-XXXXXXX-X
     return `${id.substring(0, 3)}-${id.substring(3, 10)}-${id.substring(10)}`;

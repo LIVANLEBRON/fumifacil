@@ -159,10 +159,11 @@ export default function CompanySettings() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Configuración de la Empresa
-      </Typography>
+    <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+      <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom align="center">
+          Configuración de la Empresa
+        </Typography>
       
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -372,6 +373,7 @@ export default function CompanySettings() {
           </Grid>
         </form>
       </Paper>
-    </Container>
+      </Container>
+    </Box>
   );
 }

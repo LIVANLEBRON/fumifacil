@@ -53,6 +53,10 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
       duration: theme.transitions.duration.leavingScreen,
     }),
     marginLeft: `-${drawerWidth}px`,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: '100%',
     ...(open && {
       transition: theme.transitions.create('margin', {
         easing: theme.transitions.easing.easeOut,
@@ -156,7 +160,7 @@ function AppContent() {
   const authRoutes = ['/login', '/register', '/forgot-password'];
   if (authRoutes.includes(location.pathname)) {
     return (
-      <Box>
+      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <AppRoutes />
       </Box>
     );
@@ -285,7 +289,7 @@ function AppContent() {
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        <Container maxWidth="xl" sx={{ mt: 2 }}>
+        <Container maxWidth="xl" sx={{ mt: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
           <AppRoutes />
         </Container>
       </Main>

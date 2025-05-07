@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Container, 
-  Paper, 
   Typography, 
   Box, 
+  Paper, 
   Button,
   TextField,
   InputAdornment,
@@ -25,7 +24,11 @@ import {
   Badge,
   Snackbar,
   CircularProgress,
-  Divider
+  Divider,
+  Grid,
+  Card,
+  CardContent,
+  Stack
 } from '@mui/material';
 import { DataGrid, esES } from '@mui/x-data-grid';
 import { 
@@ -43,8 +46,8 @@ import {
   MoreVert as MoreVertIcon,
   Settings as SettingsIcon
 } from '@mui/icons-material';
-import { collection, query, orderBy, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { ref, getDownloadURL } from 'firebase/storage';
+import { collection, query, orderBy, getDocs, deleteDoc, doc, updateDoc, where, limit } from 'firebase/firestore';
+import { ref, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { db, storage, functions } from '../../firebase/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { format } from 'date-fns';
@@ -139,40 +142,63 @@ export default function InvoiceList() {
     }
   };
 
-  // Función para generar PDF de factura
+  // Función para generar PDF de factura (con mejor manejo de errores)
   const handleGeneratePDF = async (invoiceId) => {
     try {
       setActionLoading(true);
+      setError('');
       
-      // Llamar a la Cloud Function para generar el PDF
-      const generateInvoicePDF = httpsCallable(functions, 'generateInvoicePDF');
-      const result = await generateInvoicePDF({ invoiceId });
+      // Obtener datos de la factura
+      const invoiceDoc = await getDoc(doc(db, 'invoices', invoiceId));
+      if (!invoiceDoc.exists()) {
+        throw new Error('La factura no existe');
+      }
+      const invoiceData = invoiceDoc.data();
       
-      if (result.data && result.data.pdfUrl) {
-        // Actualizar la factura con la URL del PDF
-        await updateDoc(doc(db, 'invoices', invoiceId), {
-          pdfUrl: result.data.pdfUrl
-        });
+      // Obtener datos de la empresa
+      const companyDoc = await getDoc(doc(db, 'settings', 'company'));
+      const companyData = companyDoc.exists() ? companyDoc.data() : {};
+      
+      console.log('Generando PDF para factura:', invoiceId);
+      
+      // Importar dinámicamente el generador de PDF
+      const { generateInvoicePDF } = await import('../../utils/pdfGenerator');
+      
+      // Generar el PDF con manejo de errores mejorado
+      const pdfUrl = await generateInvoicePDF({
+        ...invoiceData,
+        id: invoiceId
+      }, companyData);
+      
+      console.log('PDF generado exitosamente');
+      
+      // Abrir el PDF en una nueva pestaña
+      if (pdfUrl) {
+        window.open(pdfUrl, '_blank');
         
-        // Actualizar la lista de facturas
+        // Actualizar solo la factura específica en el estado local
         setInvoices(prevInvoices => 
           prevInvoices.map(invoice => 
             invoice.id === invoiceId 
-              ? { ...invoice, pdfUrl: result.data.pdfUrl } 
+              ? { ...invoice, pdfUrl: pdfUrl } 
               : invoice
           )
         );
-        
-        // Abrir el PDF
-        window.open(result.data.pdfUrl, '_blank');
         
         setSuccess('PDF generado correctamente');
       } else {
         throw new Error('No se pudo generar el PDF');
       }
     } catch (error) {
-      console.error('Error al generar el PDF:', error);
-      setError(`Error al generar el PDF: ${error.message}`);
+      console.error('Error al generar PDF:', error);
+      setError('Error al generar PDF: ' + error.message);
+      
+      // Mostrar un mensaje más amigable al usuario
+      if (error.message.includes('DOM')) {
+        setError('Error al generar PDF: Problema con el navegador. Intente refrescar la página.');
+      } else if (error.message.includes('memory') || error.message.includes('memoria')) {
+        setError('Error al generar PDF: El navegador no tiene suficiente memoria. Intente cerrar otras pestañas o reiniciar el navegador.');
+      }
     } finally {
       setActionLoading(false);
     }
@@ -468,128 +494,155 @@ export default function InvoiceList() {
   ];
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Facturas
-        </Typography>
-        <Box>
-          <Button
-            variant="outlined"
-            startIcon={<SettingsIcon />}
-            onClick={() => navigate('/configuracion/ecf')}
-            sx={{ mr: 1 }}
-          >
-            Configuración e-CF
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/facturas/nueva')}
-          >
-            Nueva Factura
-          </Button>
-        </Box>
-      </Box>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {success && (
-        <Snackbar
-          open={Boolean(success)}
-          autoHideDuration={6000}
-          onClose={() => setSuccess('')}
-          message={success}
-        />
-      )}
-
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <TextField
-            variant="outlined"
-            size="small"
-            placeholder="Buscar por cliente, RNC, TrackID o estado"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            sx={{ width: '40%' }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              )
-            }}
-          />
-          <Box>
-            <Tooltip title="Filtrar por estado">
-              <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
-                <FilterListIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Actualizar">
-              <IconButton onClick={fetchInvoices} disabled={loading || actionLoading}>
-                {(loading || actionLoading) ? <CircularProgress size={24} /> : <RefreshIcon />}
-              </IconButton>
-            </Tooltip>
+    <Box sx={{ width: '100%', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
+      <Grid container spacing={3} sx={{ maxWidth: '1200px' }}>
+        <Grid item xs={12}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Facturas
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<SettingsIcon />}
+                onClick={() => navigate('/configuracion/ecf')}
+                sx={{ borderRadius: 2 }}
+              >
+                CONFIGURACIÓN E-CF
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={() => navigate('/facturas/nueva')}
+                sx={{ borderRadius: 2 }}
+              >
+                NUEVA FACTURA
+              </Button>
+            </Box>
           </Box>
-        </Box>
+        </Grid>
 
-        <Box sx={{ display: 'flex', mb: 2 }}>
-          <Chip 
-            label="Todas" 
-            onClick={() => handleStatusFilterChange('all')}
-            color={statusFilter === 'all' ? 'primary' : 'default'}
-            sx={{ mr: 1 }}
-          />
-          <Chip 
-            label="Pendientes" 
-            onClick={() => handleStatusFilterChange('pendiente')}
-            color={statusFilter === 'pendiente' ? 'primary' : 'default'}
-            sx={{ mr: 1 }}
-          />
-          <Chip 
-            label="Enviadas" 
-            onClick={() => handleStatusFilterChange('enviada')}
-            color={statusFilter === 'enviada' ? 'primary' : 'default'}
-            sx={{ mr: 1 }}
-          />
-          <Chip 
-            label="Aceptadas" 
-            onClick={() => handleStatusFilterChange('aceptada')}
-            color={statusFilter === 'aceptada' ? 'primary' : 'default'}
-            sx={{ mr: 1 }}
-          />
-          <Chip 
-            label="Rechazadas" 
-            onClick={() => handleStatusFilterChange('rechazada')}
-            color={statusFilter === 'rechazada' ? 'primary' : 'default'}
-          />
-        </Box>
+        {error && (
+          <Grid item xs={12}>
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          </Grid>
+        )}
 
-        <div style={{ height: 500, width: '100%' }}>
-          {loading && <LinearProgress />}
-          <DataGrid
-            rows={filteredInvoices}
-            columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
-            disableSelectionOnClick
-            localeText={esES.components.MuiDataGrid.defaultProps.localeText}
-            loading={loading}
-          />
-        </div>
-      </Paper>
+        {success && (
+          <Grid item xs={12}>
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {success}
+            </Alert>
+          </Grid>
+        )}
 
-      {/* Menú de acciones */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-      >
+        <Grid item xs={12}>
+          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+                <TextField
+                  variant="outlined"
+                  size="small"
+                  placeholder="Buscar por cliente, RNC, TrackID o estado"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  sx={{ width: { xs: '100%', sm: '50%', md: '40%' } }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    )
+                  }}
+                />
+                <Box>
+                  <Tooltip title="Actualizar">
+                    <IconButton onClick={fetchInvoices} disabled={loading || actionLoading}>
+                      {(loading || actionLoading) ? <CircularProgress size={24} /> : <RefreshIcon />}
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
+
+              <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>
+                <Chip 
+                  label="Todas" 
+                  onClick={() => handleStatusFilterChange('all')}
+                  color={statusFilter === 'all' ? 'primary' : 'default'}
+                  sx={{ borderRadius: 2 }}
+                />
+                <Chip 
+                  label="Pendientes" 
+                  onClick={() => handleStatusFilterChange('pendiente')}
+                  color={statusFilter === 'pendiente' ? 'primary' : 'default'}
+                  sx={{ borderRadius: 2 }}
+                />
+                <Chip 
+                  label="Enviadas" 
+                  onClick={() => handleStatusFilterChange('enviada')}
+                  color={statusFilter === 'enviada' ? 'primary' : 'default'}
+                  sx={{ borderRadius: 2 }}
+                />
+                <Chip 
+                  label="Aceptadas" 
+                  onClick={() => handleStatusFilterChange('aceptada')}
+                  color={statusFilter === 'aceptada' ? 'primary' : 'default'}
+                  sx={{ borderRadius: 2 }}
+                />
+                <Chip 
+                  label="Rechazadas" 
+                  onClick={() => handleStatusFilterChange('rechazada')}
+                  color={statusFilter === 'rechazada' ? 'primary' : 'default'}
+                  sx={{ borderRadius: 2 }}
+                />
+              </Stack>
+
+              <Box sx={{ height: 500, width: '100%' }}>
+                {loading && <LinearProgress />}
+                {filteredInvoices.length > 0 ? (
+                  <DataGrid
+                    rows={filteredInvoices}
+                    columns={columns}
+                    pageSize={10}
+                    rowsPerPageOptions={[10, 25, 50]}
+                    disableSelectionOnClick
+                    localeText={esES.components.MuiDataGrid.defaultProps.localeText}
+                    loading={loading}
+                    sx={{
+                      '& .MuiDataGrid-cell:focus': {
+                        outline: 'none',
+                      },
+                      '& .MuiDataGrid-row:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      },
+                    }}
+                  />
+                ) : (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No se encontraron facturas
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Menú de acciones */}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleMenuClose}
+          PaperProps={{
+            elevation: 3,
+            sx: { borderRadius: 2 }
+          }}
+        >
         <MenuItem onClick={() => handleMenuAction('view')}>
           <ListItemIcon>
             <VisibilityIcon fontSize="small" />
@@ -636,11 +689,14 @@ export default function InvoiceList() {
         </MenuItem>
       </Menu>
 
-      {/* Diálogo de confirmación de eliminación */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-      >
+        {/* Diálogo de confirmación de eliminación */}
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={() => setDeleteDialogOpen(false)}
+          PaperProps={{
+            sx: { borderRadius: 2 }
+          }}
+        >
         <DialogTitle>Confirmar eliminación</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -654,6 +710,7 @@ export default function InvoiceList() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+      </Grid>
+    </Box>
   );
 }

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import './index.css';
 import App from './App.jsx';
 import './utils/offline/registerSW';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Configuración de React Query con soporte para caché offline
 const queryClient = new QueryClient({
@@ -22,10 +23,12 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

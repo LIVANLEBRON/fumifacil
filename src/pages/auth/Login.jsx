@@ -55,17 +55,13 @@ export default function Login() {
   };
 
   return (
-    <Box
-      sx={{
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: (theme) => theme.palette.grey[50]
-      }}
-    >
-      <Container component="main" maxWidth="xs">
+    <Container component="main" maxWidth="xs" sx={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '100vh',
+      width: '100%'
+    }}>
         <Paper 
           elevation={3} 
           sx={{ 
@@ -150,6 +146,5 @@ export default function Login() {
           </Box>
         </Paper>
       </Container>
-    </Box>
   );
 }

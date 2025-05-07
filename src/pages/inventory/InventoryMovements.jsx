@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Container, 
   Typography, 
   Box, 
   Paper, 
@@ -29,7 +28,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination
+  TablePagination,
+  Card,
+  CardContent,
+  Stack
 } from '@mui/material';
 import { 
   Add as AddIcon,
@@ -360,174 +362,176 @@ export default function InventoryMovements() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Movimientos de Inventario
-        </Typography>
-        <Box>
-          <Button
-            variant="contained"
-            color="success"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog(MOVEMENT_TYPES.ENTRY)}
-            sx={{ mr: 1 }}
-          >
-            Entrada
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            startIcon={<RemoveIcon />}
-            onClick={() => handleOpenDialog(MOVEMENT_TYPES.EXIT)}
-            sx={{ mr: 1 }}
-          >
-            Salida
-          </Button>
-          <Button
-            variant="contained"
-            color="warning"
-            startIcon={<SwapHorizIcon />}
-            onClick={() => handleOpenDialog(MOVEMENT_TYPES.ADJUSTMENT)}
-          >
-            Ajuste
-          </Button>
-        </Box>
-      </Box>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {success}
-        </Alert>
-      )}
-
-      <Paper sx={{ width: '100%', mb: 4 }}>
-        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">
-            Historial de Movimientos
-          </Typography>
-          <Box>
-            <Tooltip title="Filtros">
-              <IconButton onClick={() => setFilterDialogOpen(true)}>
-                <FilterListIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Actualizar">
-              <IconButton onClick={fetchMovements}>
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
+    <Box sx={{ width: '100%', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
+      <Grid container spacing={3} sx={{ maxWidth: '1200px' }}>
+        <Grid item xs={12}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Movimientos de Inventario
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenDialog(MOVEMENT_TYPES.ENTRY)}
+                sx={{ borderRadius: 2 }}
+              >
+                ENTRADA
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<RemoveIcon />}
+                onClick={() => handleOpenDialog(MOVEMENT_TYPES.EXIT)}
+                sx={{ borderRadius: 2 }}
+              >
+                SALIDA
+              </Button>
+              <Button
+                variant="contained"
+                color="warning"
+                startIcon={<SwapHorizIcon />}
+                onClick={() => handleOpenDialog(MOVEMENT_TYPES.ADJUSTMENT)}
+                sx={{ borderRadius: 2 }}
+              >
+                AJUSTE
+              </Button>
+            </Box>
           </Box>
-        </Box>
+        </Grid>
+
+        {error && (
+          <Grid item xs={12}>
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          </Grid>
+        )}
+
+        {success && (
+          <Grid item xs={12}>
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {success}
+            </Alert>
+          </Grid>
+        )}
+
+        <Grid item xs={12}>
+          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" component="h2">
+                  Historial de Movimientos
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                  <Tooltip title="Filtrar">
+                    <IconButton onClick={() => setFilterDialogOpen(true)}>
+                      <FilterListIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Actualizar">
+                    <IconButton onClick={fetchMovements}>
+                      <RefreshIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </Box>
         
         <Divider />
         
-        <TableContainer>
-          <Table sx={{ minWidth: 650 }} aria-label="tabla de movimientos">
-            <TableHead>
-              <TableRow>
-                <TableCell>Fecha</TableCell>
-                <TableCell>Tipo</TableCell>
-                <TableCell>Razón</TableCell>
-                <TableCell>Producto</TableCell>
-                <TableCell align="right">Cantidad Anterior</TableCell>
-                <TableCell align="right">Cambio</TableCell>
-                <TableCell align="right">Nueva Cantidad</TableCell>
-                <TableCell>Referencia</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    <CircularProgress size={24} sx={{ my: 2 }} />
-                  </TableCell>
-                </TableRow>
-              ) : movements.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    No hay movimientos registrados
-                  </TableCell>
-                </TableRow>
-              ) : (
-                movements
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((movement) => (
-                    <TableRow key={movement.id}>
-                      <TableCell>
-                        {movement.timestamp ? 
-                          format(movement.timestamp.toDate(), 'dd/MM/yyyy HH:mm', { locale: es }) : 
-                          'Fecha no disponible'}
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ color: getMovementTypeColor(movement.type) }}>
-                          {getMovementTypeLabel(movement.type)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{getReasonLabel(movement.type, movement.reason)}</TableCell>
-                      <TableCell>
-                        <Tooltip title={`Lote: ${movement.productLot || 'N/A'}`}>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                              '&:hover': { color: 'primary.main' }
-                            }}
-                            onClick={() => navigate(`/inventario/${movement.productId}`)}
-                          >
-                            {movement.productName}
-                          </Typography>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell align="right">{movement.previousQuantity}</TableCell>
-                      <TableCell align="right">
-                        <Typography sx={{ 
-                          color: movement.type === MOVEMENT_TYPES.ENTRY ? 'success.main' : 
-                                 movement.type === MOVEMENT_TYPES.EXIT ? 'error.main' : 'warning.main',
-                          fontWeight: 'bold'
-                        }}>
-                          {movement.type === MOVEMENT_TYPES.ENTRY ? '+' : 
-                           movement.type === MOVEMENT_TYPES.EXIT ? '-' : '→'} 
-                          {movement.type === MOVEMENT_TYPES.ADJUSTMENT ? 
-                            `${movement.previousQuantity} → ${movement.newQuantity}` : 
-                            movement.quantity}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">{movement.newQuantity}</TableCell>
-                      <TableCell>{movement.reference || '-'}</TableCell>
+              <TableContainer component={Paper} sx={{ maxHeight: 440, borderRadius: 1, boxShadow: 'none' }}>
+                <Table stickyHeader aria-label="tabla de movimientos">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Fecha</TableCell>
+                      <TableCell>Tipo</TableCell>
+                      <TableCell>Razón</TableCell>
+                      <TableCell>Producto</TableCell>
+                      <TableCell align="right">Cantidad Anterior</TableCell>
+                      <TableCell align="right">Cambio</TableCell>
+                      <TableCell align="right">Nueva Cantidad</TableCell>
+                      <TableCell>Referencia</TableCell>
                     </TableRow>
-                  ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={movements.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="Filas por página"
-          labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
-        />
-      </Paper>
+                  </TableHead>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center">
+                          <CircularProgress size={24} />
+                        </TableCell>
+                      </TableRow>
+                    ) : movements.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center">
+                          No hay movimientos registrados
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      movements
+                        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                        .map((movement) => (
+                          <TableRow key={movement.id} hover>
+                            <TableCell>
+                              {movement.timestamp && movement.timestamp.toDate ? 
+                                format(movement.timestamp.toDate(), 'dd/MM/yyyy HH:mm', { locale: es }) : 
+                                'Fecha no disponible'}
+                            </TableCell>
+                            <TableCell>
+                              <Typography 
+                                variant="body2" 
+                                sx={{ color: getMovementTypeColor(movement.type) }}
+                              >
+                                {getMovementTypeLabel(movement.type)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              {getReasonLabel(movement.type, movement.reason)}
+                            </TableCell>
+                            <TableCell>{movement.productName}</TableCell>
+                            <TableCell align="right">{movement.quantityBefore}</TableCell>
+                            <TableCell 
+                              align="right"
+                              sx={{ 
+                                color: movement.change > 0 
+                                  ? 'success.main' 
+                                  : movement.change < 0 
+                                    ? 'error.main' 
+                                    : 'text.secondary'
+                              }}
+                            >
+                              {movement.change > 0 ? `+${movement.change}` : movement.change}
+                            </TableCell>
+                            <TableCell align="right">{movement.quantityAfter}</TableCell>
+                            <TableCell>{movement.reference || '-'}</TableCell>
+                          </TableRow>
+                        ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <TablePagination
+                rowsPerPageOptions={[10, 25, 50]}
+                component="div"
+                count={movements.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="Filas por página"
+                labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Diálogo para registrar movimiento */}
       <Dialog 
         open={dialogOpen} 
         onClose={() => setDialogOpen(false)}
-        fullWidth
         maxWidth="md"
+        fullWidth
       >
         <DialogTitle>
           {movementType === MOVEMENT_TYPES.ENTRY ? 'Registrar Entrada' : 
@@ -688,6 +692,6 @@ export default function InventoryMovements() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 }

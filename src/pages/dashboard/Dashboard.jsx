@@ -182,10 +182,11 @@ export default function Dashboard() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Dashboard
-      </Typography>
+    <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom align="center">
+          Dashboard
+        </Typography>
       
       {/* Tarjetas de estadísticas */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -372,6 +373,7 @@ export default function Dashboard() {
           </Button>
         </Box>
       </Grid>
-    </Container>
+      </Container>
+    </Box>
   );
 }

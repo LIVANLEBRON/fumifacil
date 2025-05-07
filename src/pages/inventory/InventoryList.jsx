@@ -18,7 +18,10 @@ import {
   DialogTitle,
   Alert,
   LinearProgress,
-  Badge
+  Badge,
+  Grid,
+  Card,
+  CardContent
 } from '@mui/material';
 import { DataGrid, esES } from '@mui/x-data-grid';
 import { 
@@ -135,18 +138,18 @@ export default function InventoryList() {
         try {
           const imageRef = ref(storage, `inventory/${selectedProduct.id}.jpg`);
           await deleteObject(imageRef);
-        } catch (storageError) {
-          console.error('Error al eliminar la imagen:', storageError);
+        } catch (error) {
+          console.error('Error al eliminar la imagen:', error);
           // Continuar aunque falle la eliminación de la imagen
         }
       }
       
-      // Actualizar lista de productos
-      setProducts(prevProducts => 
-        prevProducts.filter(product => product.id !== selectedProduct.id)
-      );
+      // Actualizar estado local
+      setProducts(products.filter(product => product.id !== selectedProduct.id));
+      setFilteredProducts(filteredProducts.filter(product => product.id !== selectedProduct.id));
+      setSuccess(`Producto "${selectedProduct.name}" eliminado correctamente.`);
       
-      setSuccess('Producto eliminado correctamente.');
+      // Cerrar diálogo
       setDeleteDialogOpen(false);
       setSelectedProduct(null);
     } catch (error) {
@@ -163,27 +166,22 @@ export default function InventoryList() {
       setLoading(true);
       setError('');
       
-      const productsQuery = query(
-        collection(db, 'inventory'),
-        where('quantity', '<', 10),
-        orderBy('quantity', 'asc')
-      );
+      if (products.length === 0) {
+        await fetchProducts();
+      }
       
-      const querySnapshot = await getDocs(productsQuery);
-      const productsData = [];
+      // Filtrar productos con stock bajo (menos de 10 unidades)
+      const lowStockProducts = products.filter(product => product.quantity < 10);
       
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        productsData.push({
-          id: doc.id,
-          ...data,
-          expiration: data.expiration
-        });
-      });
+      if (lowStockProducts.length === 0) {
+        setSuccess('No hay productos con stock bajo.');
+      } else {
+        setSuccess(`Se encontraron ${lowStockProducts.length} productos con stock bajo.`);
+      }
       
-      setFilteredProducts(productsData);
+      setFilteredProducts(lowStockProducts);
     } catch (error) {
-      console.error('Error al filtrar productos:', error);
+      console.error('Error al filtrar productos con stock bajo:', error);
       setError('Error al filtrar productos. Por favor, intenta nuevamente.');
     } finally {
       setLoading(false);
@@ -196,129 +194,118 @@ export default function InventoryList() {
       setLoading(true);
       setError('');
       
+      if (products.length === 0) {
+        await fetchProducts();
+      }
+      
       const today = new Date();
-      const thirtyDaysLater = new Date();
-      thirtyDaysLater.setDate(today.getDate() + 30);
       
-      const productsQuery = query(
-        collection(db, 'inventory'),
-        where('expiration', '<=', thirtyDaysLater),
-        where('expiration', '>=', today),
-        orderBy('expiration', 'asc')
-      );
-      
-      const querySnapshot = await getDocs(productsQuery);
-      const productsData = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        productsData.push({
-          id: doc.id,
-          ...data,
-          expiration: data.expiration
-        });
+      // Filtrar productos que vencen en los próximos 30 días
+      const expiringProducts = products.filter(product => {
+        const expirationDate = product.expiration.toDate();
+        return differenceInDays(expirationDate, today) <= 30;
       });
       
-      setFilteredProducts(productsData);
+      if (expiringProducts.length === 0) {
+        setSuccess('No hay productos próximos a vencer.');
+      } else {
+        setSuccess(`Se encontraron ${expiringProducts.length} productos próximos a vencer.`);
+      }
+      
+      setFilteredProducts(expiringProducts);
     } catch (error) {
-      console.error('Error al filtrar productos:', error);
+      console.error('Error al filtrar productos próximos a vencer:', error);
       setError('Error al filtrar productos. Por favor, intenta nuevamente.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Columnas para la tabla de productos
+  // Definir columnas para la tabla
   const columns = [
-    { 
-      field: 'name', 
-      headerName: 'Nombre', 
-      width: 200,
-      flex: 1
-    },
     { 
       field: 'lot', 
       headerName: 'Lote', 
       width: 120 
     },
     { 
+      field: 'name', 
+      headerName: 'Nombre', 
+      width: 200,
+      renderCell: (params) => (
+        <Box>
+          <Typography variant="body2" component="div">
+            {params.value}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {params.row.description}
+          </Typography>
+        </Box>
+      )
+    },
+    { 
       field: 'quantity', 
       headerName: 'Cantidad', 
-      width: 120,
-      type: 'number',
-      renderCell: (params) => {
-        const isLowStock = params.value < 10;
-        return (
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography 
-              variant="body2" 
-              sx={{ color: isLowStock ? 'error.main' : 'inherit' }}
-            >
-              {params.value}
-            </Typography>
-            {isLowStock && (
-              <WarningIcon 
-                color="error" 
-                fontSize="small" 
-                sx={{ ml: 1 }} 
-              />
-            )}
-          </Box>
-        );
-      }
+      width: 100,
+      align: 'center',
+      headerAlign: 'center',
     },
     { 
       field: 'unit', 
       headerName: 'Unidad', 
-      width: 120 
+      width: 100,
+      align: 'center',
+      headerAlign: 'center',
     },
     { 
       field: 'expiration', 
       headerName: 'Vencimiento', 
       width: 150,
-      valueFormatter: (params) => format(params.value.toDate(), 'dd/MM/yyyy', { locale: es }),
+      valueFormatter: (params) => {
+        return params.value ? format(params.value.toDate(), 'dd/MM/yyyy', { locale: es }) : 'N/A';
+      },
       renderCell: (params) => {
-        const today = new Date();
+        if (!params.value) return 'N/A';
+        
         const expirationDate = params.value.toDate();
-        const daysToExpiration = differenceInDays(expirationDate, today);
+        const today = new Date();
+        const daysToExpire = differenceInDays(expirationDate, today);
         
-        const isExpiringSoon = daysToExpiration <= 30;
-        const isExpired = daysToExpiration < 0;
-        
-        let color = 'inherit';
-        if (isExpired) {
-          color = 'error.main';
-        } else if (isExpiringSoon) {
+        let color = 'success.main';
+        if (daysToExpire <= 30) {
           color = 'warning.main';
+        }
+        if (daysToExpire <= 7) {
+          color = 'error.main';
         }
         
         return (
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body2" sx={{ color }}>
+            {daysToExpire <= 30 && (
+              <Tooltip title="Próximo a vencer">
+                <WarningIcon fontSize="small" sx={{ color, mr: 1 }} />
+              </Tooltip>
+            )}
+            <Typography sx={{ color }}>
               {format(expirationDate, 'dd/MM/yyyy', { locale: es })}
             </Typography>
-            {(isExpiringSoon || isExpired) && (
-              <WarningIcon 
-                color={isExpired ? 'error' : 'warning'} 
-                fontSize="small" 
-                sx={{ ml: 1 }} 
-              />
-            )}
           </Box>
         );
       }
     },
-    {
-      field: 'actions',
-      headerName: 'Acciones',
+    { 
+      field: 'actions', 
+      headerName: 'Acciones', 
       width: 150,
+      align: 'center',
+      headerAlign: 'center',
       sortable: false,
       renderCell: (params) => (
-        <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
           <Tooltip title="Ver detalles">
             <IconButton 
               size="small" 
-              onClick={() => navigate(`/inventario/${params.row.id}`)}
+              onClick={() => navigate(`/inventario/ver/${params.row.id}`)}
             >
               <VisibilityIcon fontSize="small" />
             </IconButton>
@@ -345,103 +332,149 @@ export default function InventoryList() {
   ];
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Inventario
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/inventario/nuevo')}
-        >
-          Nuevo Producto
-        </Button>
-      </Box>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {success}
-        </Alert>
-      )}
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <Badge badgeContent={lowStockCount} color="error" max={99}>
-          <Button 
-            variant="outlined" 
-            color="error"
-            onClick={handleFilterLowStock}
-          >
-            Stock Bajo
-          </Button>
-        </Badge>
-        <Badge badgeContent={expiringCount} color="warning" max={99}>
-          <Button 
-            variant="outlined" 
-            color="warning"
-            onClick={handleFilterExpiring}
-          >
-            Próximos a Vencer
-          </Button>
-        </Badge>
-        <Button 
-          variant="outlined" 
-          onClick={fetchProducts}
-        >
-          Ver Todos
-        </Button>
-      </Box>
-
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <TextField
-            variant="outlined"
-            size="small"
-            placeholder="Buscar por nombre o lote"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            sx={{ width: '40%' }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              )
-            }}
-          />
-          <Box>
-            <Tooltip title="Filtros avanzados">
-              <IconButton>
-                <FilterListIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Actualizar">
-              <IconButton onClick={fetchProducts}>
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
+    <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+      <Grid container spacing={3} sx={{ maxWidth: '1200px' }}>
+        <Grid item xs={12}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Inventario
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/inventario/nuevo')}
+              sx={{ borderRadius: 2 }}
+            >
+              Nuevo Producto
+            </Button>
           </Box>
-        </Box>
+        </Grid>
 
-        <div style={{ height: 500, width: '100%' }}>
-          {loading && <LinearProgress />}
-          <DataGrid
-            rows={filteredProducts}
-            columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
-            disableSelectionOnClick
-            localeText={esES.components.MuiDataGrid.defaultProps.localeText}
-            loading={loading}
-          />
-        </div>
-      </Paper>
+        {error && (
+          <Grid item xs={12}>
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          </Grid>
+        )}
+
+        {success && (
+          <Grid item xs={12}>
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {success}
+            </Alert>
+          </Grid>
+        )}
+
+        <Grid item xs={12}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={4}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Badge badgeContent={lowStockCount} color="error" max={99}>
+                    <Button 
+                      variant="outlined" 
+                      color="error"
+                      onClick={handleFilterLowStock}
+                      fullWidth
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Stock Bajo
+                    </Button>
+                  </Badge>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Badge badgeContent={expiringCount} color="warning" max={99}>
+                    <Button 
+                      variant="outlined" 
+                      color="warning"
+                      onClick={handleFilterExpiring}
+                      fullWidth
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Próximos a Vencer
+                    </Button>
+                  </Badge>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Button 
+                    variant="outlined" 
+                    onClick={fetchProducts}
+                    fullWidth
+                    sx={{ borderRadius: 2 }}
+                  >
+                    Ver Todos
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+              <TextField
+                variant="outlined"
+                size="small"
+                placeholder="Buscar por nombre o lote"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                sx={{ width: { xs: '100%', sm: '50%', md: '40%' } }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  )
+                }}
+              />
+              <Box>
+                <Tooltip title="Filtros avanzados">
+                  <IconButton>
+                    <FilterListIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Actualizar">
+                  <IconButton onClick={fetchProducts}>
+                    <RefreshIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Box>
+
+            <Box sx={{ height: 500, width: '100%' }}>
+              {loading && <LinearProgress />}
+              <DataGrid
+                rows={filteredProducts}
+                columns={columns}
+                pageSize={10}
+                rowsPerPageOptions={[10, 25, 50]}
+                disableSelectionOnClick
+                localeText={esES.components.MuiDataGrid.defaultProps.localeText}
+                loading={loading}
+                sx={{
+                  '& .MuiDataGrid-cell:focus': {
+                    outline: 'none',
+                  },
+                  '& .MuiDataGrid-row:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              />
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
 
       {/* Diálogo de confirmación de eliminación */}
       <Dialog
@@ -461,6 +494,6 @@ export default function InventoryList() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 }

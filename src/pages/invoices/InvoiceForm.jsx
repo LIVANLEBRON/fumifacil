@@ -775,12 +775,14 @@ export default function InvoiceForm() {
           {renderStep()}
           
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-            <Button
-              disabled={activeStep === 0}
-              onClick={handleBack}
-            >
-              Atrás
-            </Button>
+            <span>
+              <Button
+                disabled={activeStep === 0}
+                onClick={handleBack}
+              >
+                Atrás
+              </Button>
+            </span>
             <Box>
               {activeStep < steps.length - 1 ? (
                 <Button
@@ -791,23 +793,27 @@ export default function InvoiceForm() {
                 </Button>
               ) : (
                 <>
-                  <Button
-                    variant="outlined"
-                    startIcon={<SaveIcon />}
-                    onClick={handleSubmit}
-                    sx={{ mr: 1 }}
-                    disabled={loading}
-                  >
-                    Guardar
-                  </Button>
-                  <Button
-                    variant="contained"
-                    startIcon={<SendIcon />}
-                    type="submit"
-                    disabled={loading}
-                  >
-                    {loading ? <CircularProgress size={24} /> : 'Enviar a DGII'}
-                  </Button>
+                  <span>
+                    <Button
+                      variant="outlined"
+                      startIcon={loading ? null : <SaveIcon />}
+                      onClick={handleSubmit}
+                      sx={{ mr: 1 }}
+                      disabled={loading}
+                    >
+                      Guardar
+                    </Button>
+                  </span>
+                  <span>
+                    <Button
+                      variant="contained"
+                      startIcon={loading ? null : <SendIcon />}
+                      type="submit"
+                      disabled={loading}
+                    >
+                      {loading ? <CircularProgress size={24} /> : 'Enviar a DGII'}
+                    </Button>
+                  </span>
                 </>
               )}
             </Box>

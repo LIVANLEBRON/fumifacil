@@ -18,7 +18,8 @@ import {
   Menu,
   MenuItem,
   Tooltip,
-  Collapse
+  Collapse,
+  Container
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -90,7 +91,7 @@ export default function Layout() {
   const drawer = (
     <div>
       <Toolbar sx={{ justifyContent: 'center', py: 1 }}>
-        <Typography variant="h6" noWrap component="div">
+        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold' }}>
           FumiFacil
         </Typography>
       </Toolbar>
@@ -149,13 +150,14 @@ export default function Layout() {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', height: '100vh' }}>
       <CssBaseline />
       <AppBar
         position="fixed"
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          boxShadow: 3
         }}
       >
         <Toolbar>
@@ -173,6 +175,9 @@ export default function Layout() {
           </Typography>
           {currentUser && (
             <div>
+              <Typography variant="body2" sx={{ display: 'inline-block', mr: 2 }}>
+                {currentUser.email}
+              </Typography>
               <Tooltip title="Cuenta">
                 <IconButton
                   size="large"
@@ -245,7 +250,12 @@ export default function Layout() {
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+              boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)'
+            },
           }}
           open
         >
@@ -254,9 +264,20 @@ export default function Layout() {
       </Box>
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` }, mt: 8 }}
+        sx={{ 
+          flexGrow: 1, 
+          display: 'flex',
+          flexDirection: 'column',
+          width: { sm: `calc(100% - ${drawerWidth}px)` }, 
+          height: '100%',
+          overflow: 'auto',
+          bgcolor: (theme) => theme.palette.grey[50]
+        }}
       >
-        <Outlet />
+        <Toolbar /> {/* Espaciador para el AppBar fijo */}
+        <Container maxWidth="xl" sx={{ flexGrow: 1, py: 3 }}>
+          <Outlet />
+        </Container>
       </Box>
     </Box>
   );
