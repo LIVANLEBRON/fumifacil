@@ -52,6 +52,7 @@ import { db, storage, functions } from '../../firebase/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 export default function InvoiceList() {
   const [invoices, setInvoices] = useState([]);
@@ -604,23 +605,30 @@ export default function InvoiceList() {
               <Box sx={{ height: 500, width: '100%' }}>
                 {loading && <LinearProgress />}
                 {filteredInvoices.length > 0 ? (
-                  <DataGrid
-                    rows={filteredInvoices}
-                    columns={columns}
-                    pageSize={10}
-                    rowsPerPageOptions={[10, 25, 50]}
-                    disableSelectionOnClick
-                    localeText={esES.components.MuiDataGrid.defaultProps.localeText}
-                    loading={loading}
-                    sx={{
-                      '& .MuiDataGrid-cell:focus': {
-                        outline: 'none',
-                      },
-                      '& .MuiDataGrid-row:hover': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      },
-                    }}
-                  />
+                  <ErrorBoundary fallback={<Typography color="error">Error al cargar la tabla de facturas</Typography>}>
+                    <DataGrid
+                      rows={filteredInvoices}
+                      columns={columns}
+                      initialState={{
+                        pagination: {
+                          paginationModel: { pageSize: 10 },
+                        },
+                      }}
+                      pageSizeOptions={[10, 25, 50]}
+                      disableRowSelectionOnClick
+                      localeText={esES.components.MuiDataGrid.defaultProps.localeText}
+                      loading={loading}
+                      keepNonExistentRowsSelected={false}
+                      sx={{
+                        '& .MuiDataGrid-cell:focus': {
+                          outline: 'none',
+                        },
+                        '& .MuiDataGrid-row:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
+                      }}
+                    />
+                  </ErrorBoundary>
                 ) : (
                   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                     <Typography variant="body1" color="text.secondary">

@@ -214,11 +214,22 @@ export const generateInvoicePDF = async (invoiceData, companyData) => {
     doc.setFont('helvetica', 'normal');
     doc.text('Gracias por su preferencia', pageWidth / 2, footerY, { align: 'center' });
     
+    // Desconectar del DOM antes de operaciones intensivas para evitar errores de removeChild
+    // Esta técnica ayuda a evitar conflictos entre React y operaciones de manipulación directa del DOM
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
     // Guardar el PDF en Firebase Storage con manejo de errores mejorado
     let pdfUrl;
     try {
       console.log('Generando blob del PDF...');
-      const pdfBlob = doc.output('blob');
+      // Usar un bloque try-catch específico para la generación del blob
+      let pdfBlob;
+      try {
+        pdfBlob = doc.output('blob');
+      } catch (blobError) {
+        console.error('Error al generar blob del PDF:', blobError);
+        throw new Error('No se pudo generar el archivo PDF: ' + blobError.message);
+      }
       
       console.log('Subiendo PDF a Firebase Storage...');
       const storageRef = ref(storage, `invoices/${invoiceData.id}.pdf`);
@@ -231,6 +242,8 @@ export const generateInvoicePDF = async (invoiceData, companyData) => {
       while (!uploadSuccess && attempts < maxAttempts) {
         try {
           attempts++;
+          // Desconectar del DOM nuevamente antes de la operación de subida
+          await new Promise(resolve => setTimeout(resolve, 0));
           await uploadBytes(storageRef, pdfBlob);
           uploadSuccess = true;
           console.log(`PDF subido exitosamente en el intento ${attempts}`);

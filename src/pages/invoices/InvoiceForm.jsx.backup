@@ -637,7 +637,7 @@ export default function InvoiceForm() {
             </Grid>
           </Paper>
         </Grid>
-      
+      ))}
       
       <Grid item xs={12}>
         <Paper sx={{ p: 2 }}>
@@ -896,5 +896,4 @@ export default function InvoiceForm() {
       </Paper>
     </Container>
   );
-}
 }

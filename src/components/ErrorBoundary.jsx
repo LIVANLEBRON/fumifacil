@@ -22,12 +22,36 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // También puedes registrar el error en un servicio de reporte de errores
+    // Registrar el error en la consola
     console.error('Error capturado por ErrorBoundary:', error, errorInfo);
+    
+    // Detectar específicamente errores de removeChild
+    const isRemoveChildError = 
+      error.message && (
+        error.message.includes('removeChild') ||
+        error.message.includes('The node to be removed is not a child of this node')
+      );
+    
+    // Guardar información del error en el estado
     this.setState({
       error: error,
-      errorInfo: errorInfo
+      errorInfo: errorInfo,
+      isRemoveChildError: isRemoveChildError
     });
+    
+    // Si es un error de removeChild, intentar limpiar el DOM
+    if (isRemoveChildError) {
+      console.warn('Detectado error de removeChild, intentando recuperación...');
+      // Usar setTimeout para permitir que React complete el ciclo de renderizado actual
+      setTimeout(() => {
+        try {
+          // Forzar una actualización limpia
+          this.forceUpdate();
+        } catch (e) {
+          console.error('Error durante la recuperación:', e);
+        }
+      }, 0);
+    }
   }
 
   handleReset = () => {
@@ -40,7 +64,22 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      // Puedes renderizar cualquier UI alternativa
+      // Si es un componente hijo que proporciona su propio fallback
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+      
+      // Determinar el mensaje de error apropiado
+      let errorMessage = 'Ha ocurrido un error en la aplicación';
+      let detailMessage = 'Por favor, intenta recargar la página';
+      
+      // Mensaje específico para errores de removeChild
+      if (this.state.isRemoveChildError) {
+        errorMessage = 'Error de manipulación del DOM';
+        detailMessage = 'Se ha detectado un problema con la interfaz. Esto suele resolverse recargando la página.';
+      }
+      
+      // UI alternativa para errores
       return (
         <Box 
           sx={{ 
@@ -55,17 +94,16 @@ class ErrorBoundary extends React.Component {
             elevation={3} 
             sx={{ 
               p: 4, 
-              maxWidth: 600, 
-              textAlign: 'center',
-              borderRadius: 2
+              maxWidth: 500, 
+              textAlign: 'center'
             }}
           >
             <ErrorOutline color="error" sx={{ fontSize: 60, mb: 2 }} />
-            <Typography variant="h5" component="h2" gutterBottom>
-              Algo salió mal
+            <Typography variant="h5" color="error" gutterBottom>
+              {errorMessage}
             </Typography>
-            <Typography variant="body1" color="text.secondary" paragraph>
-              Ha ocurrido un error en esta parte de la aplicación. Puedes intentar recargar la página o volver al inicio.
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              {detailMessage}
             </Typography>
             {this.state.error && (
               <Box sx={{ mt: 2, mb: 3, textAlign: 'left', bgcolor: '#f5f5f5', p: 2, borderRadius: 1 }}>

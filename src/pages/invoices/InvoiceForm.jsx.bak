@@ -36,6 +36,7 @@ import { httpsCallable } from 'firebase/functions';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import SafeButton from '../../components/SafeButton';
+import SafeButton from '../../components/SafeButton';
 import CertificateErrorMessage from '../../components/CertificateErrorMessage';
 // Importar servicios de facturación electrónica
 import { createInvoice, sendInvoiceToDGII, generateInvoicePDF } from '../../utils/ecf/invoiceService';
@@ -581,14 +582,12 @@ export default function InvoiceForm() {
         <Grid item xs={12}>
           <Paper sx={{ p: 2 }}>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
-                <TextField
                   required
                   fullWidth
                   label="Descripción"
                   value={item.description}
                   onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                />
+                /{'>'}
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
@@ -637,7 +636,7 @@ export default function InvoiceForm() {
             </Grid>
           </Paper>
         </Grid>
-      
+      ))}
       
       <Grid item xs={12}>
         <Paper sx={{ p: 2 }}>
@@ -896,5 +895,4 @@ export default function InvoiceForm() {
       </Paper>
     </Container>
   );
-}
 }

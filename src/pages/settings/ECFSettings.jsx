@@ -39,6 +39,7 @@ import { db, storage, functions } from '../../firebase/firebase';
 import { httpsCallable } from 'firebase/functions';
 import CryptoJS from 'crypto-js';
 import CertificateManager from '../../components/ecf/CertificateManager';
+import DevelopmentCertificateButton from '../../components/DevelopmentCertificateButton';
 
 /**
  * Componente para la configuración de facturación electrónica (e-CF)
@@ -318,9 +319,19 @@ export default function ECFSettings() {
             </Grid>
             
             <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                Certificado Digital
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                  Certificado Digital
+                </Typography>
+                {!hasCertificate && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Para desarrollo, puede crear un certificado temporal:
+                    </Typography>
+                    <DevelopmentCertificateButton />
+                  </Box>
+                )}
+              </Box>
               <Divider sx={{ mb: 2 }} />
             </Grid>
             

@@ -581,8 +581,6 @@ export default function InvoiceForm() {
         <Grid item xs={12}>
           <Paper sx={{ p: 2 }}>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
-                <TextField
                   required
                   fullWidth
                   label="Descripción"
@@ -637,7 +635,7 @@ export default function InvoiceForm() {
             </Grid>
           </Paper>
         </Grid>
-      
+      ))}
       
       <Grid item xs={12}>
         <Paper sx={{ p: 2 }}>
@@ -896,5 +894,4 @@ export default function InvoiceForm() {
       </Paper>
     </Container>
   );
-}
 }
